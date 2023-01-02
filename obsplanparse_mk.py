@@ -67,12 +67,12 @@ class ObsPlanParse:
                 command_dict['command_name'] = self._build_command_name(child)
           
             if child.data == 'args':
-                #POPRAWIĆ !
+                #todo change this!
                 if str(child).find('val')>0:
                     command_dict['args'] = self._build_args(child)
          
             if child.data == 'kwargs':
-                #POPRAWIĆ !
+                #todo change this!
                 if str(child).find('val')>0:
                     command_dict['kwargs'] = self._build_kwargs(child)
                               
@@ -105,12 +105,12 @@ class ObsPlanParse:
                 sequence_dict['begin_sequence'] = 'begin'
                 
             if child.data == 'args':
-                #POPRAWIĆ !
+                #todo change this!
                 if str(child).find('val')>0:
                     sequence_dict['args'] = self._build_args(child)
          
             if child.data == 'kwargs':
-                #POPRAWIĆ !
+                #todo change this!
                 if str(child).find('val')>0:
                     sequence_dict['kwargs'] = self._build_kwargs(child)
             
