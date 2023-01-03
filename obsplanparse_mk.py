@@ -10,23 +10,9 @@ from typing import Any, List
 class ObsPlanParse:
     
     def _build_kwargs(self, tree: Tree[Any]):
-        """
-        Build dict of kwargs.
-
-        Parameters
-        ----------
-        tree : TYPE
-            DESCRIPTION.
-
-        Returns
-        -------
-        kwargs_dict : TYPE
-            DESCRIPTION.
-
-        """
         
         kwargs_dict = {}
-        
+
         for child in tree.children:    
             if child.data == 'kwarg':
                 for child_2 in child.children:
