@@ -1,11 +1,9 @@
-#import logging
 from lark import Lark, Tree #, logger
 from typing import Any, List
+import logging
 
 
-#logger.setLevel(logging.DEBUG)
-
-#w line_grammar word deleted: [^{BEGINSEQUENCE}{ }]
+log = logging.getLogger(__name__.rsplit('.')[-1])
 
 class ObsPlanParse:
     
@@ -133,15 +131,22 @@ class ObsPlanParse:
 
         """
         
-        line_grammar = self._read_file('txt_files/line_parser.txt')
-        line_parser = Lark(line_grammar)
+        #line_grammar = self._read_file('txt_files/line_parser.txt')
+        line_parser = Lark(self.line_grammar)
+
         parse = line_parser.parse
         
-        return parse(text)
-    
-    
+        return parse(self.add_beg_end(text))
+
+    def add_beg_end(self, text):
+        #to_split = list(text.split('\n')[:-1])
+        #txt_to_parse = ''
+        #for n in to_split:
+        txt_to_parse = f"BEGINSEQUENCE \n{text} \nENDSEQUENCE"
+        print(txt_to_parse)
+        return txt_to_parse
+
     def _convert_parsed_text(self, parsed_text: Tree[Any]) -> List[Any]:
-        
         return self._build_sequences(parsed_text)
     
     
@@ -163,15 +168,40 @@ class ObsPlanParse:
         par_txt = self._parse_text(text)
         builded_sequences = self._convert_parsed_text(par_txt)
         self._write_to_file(output_file_name, builded_sequences)
-            
+
+    @property
+    def line_grammar(self):
+        lin_gr =r"""
+        ?start: sequences
+        !sequences      : sequence*
+        !sequence       : end_line* begin_sequence args kwargs comment? separator all_commands end_sequence comment? (end_line* comment?)*
+        !all_commands   : (command separator)*
+        !command        : (command_name args kwargs | sequence) comment?
+        !command_name   : word
+        kwargs          : kwarg*
+        args            : val*
+        kwarg           : kw "=" (val ",")+ val | kw "=" val
+        !begin_sequence : "BEGINSEQUENCE"
+        !end_sequence   : "ENDSEQUENCE"
+        separator       : end_line+
+        word            : /[^{BEGINSEQUENCE}{ }][A-Z]+/
+        comment         : /#.*/
+        end_line        : /\n/
+        !kw             : string_simple
+        !val            : string_simple | string_quoted
+        ?string_quoted  : /[\"].*[\"]|[\'].*[\']/
+        ?string_simple  : /[^\s=\'\"]+/
+        %ignore /[ \f]+/
+        """
+        return lin_gr
 
 
 if __name__ == '__main__':
     
     opp = ObsPlanParse()
-    opp.make_conversion("txt_files/test_input_1.txt", "txt_files/test_output_1.txt")
-    opp.make_conversion("txt_files/test_input_2.txt", "txt_files/test_output_2.txt")
-    opp.make_conversion("txt_files/test_input_3.txt", "txt_files/test_output_3.txt")
+    opp.make_conversion("txt_files/observe_command.txt", "txt_files/observe_command_NEW1.txt")
+    #opp.make_conversion("txt_files/test_input_2.txt", "txt_files/test_output_NEW2.txt")
+    #opp.make_conversion("txt_files/test_input_3.txt", "txt_files/test_output_NEW3.txt")
 
 
         
