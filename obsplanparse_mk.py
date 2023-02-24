@@ -2,7 +2,7 @@ from lark import Lark, Tree #, logger
 from typing import Any, List
 import logging
 
-
+logging.basicConfig(level=logging.DEBUG)
 log = logging.getLogger(__name__.rsplit('.')[-1])
 
 class ObsPlanParse:
@@ -116,22 +116,7 @@ class ObsPlanParse:
        
         
     def _parse_text(self, text: str) -> Tree[Any]:
-        """
-        This func parse text using Lark and line_grammar from file.
-        
-        Parameters
-        ----------
-        text : str
-            Input text to parse.
 
-        Returns
-        -------
-        Tree[Any]
-            Generates Lark Tree.
-
-        """
-        
-        #line_grammar = self._read_file('txt_files/line_parser.txt')
         line_parser = Lark(self.line_grammar)
 
         parse = line_parser.parse
@@ -139,11 +124,9 @@ class ObsPlanParse:
         return parse(self.add_beg_end(text))
 
     def add_beg_end(self, text):
-        #to_split = list(text.split('\n')[:-1])
-        #txt_to_parse = ''
-        #for n in to_split:
+
         txt_to_parse = f"BEGINSEQUENCE \n{text} \nENDSEQUENCE"
-        print(txt_to_parse)
+        log.debug(txt_to_parse)
         return txt_to_parse
 
     def _convert_parsed_text(self, parsed_text: Tree[Any]) -> List[Any]:
@@ -151,17 +134,18 @@ class ObsPlanParse:
     
     
     def _read_file(self, file_name: str) -> str:
-        #H
+
         return str(open(file_name, "r").read())
         
     
     def _write_to_file(self, file_name: str, builded_sequences) ->None:
         
         file = open(file_name, "w")
+        log.debug(f'{builded_sequences}')
+        #log.debug(f'{builded_sequences[0]["all_commands"][0]["args"]}')
         file.write(str(builded_sequences))
         file.close()
-    
-    
+
     def make_conversion(self, input_file_name: str, output_file_name: str) -> None:
         
         text = self._read_file(input_file_name)
@@ -200,9 +184,5 @@ if __name__ == '__main__':
     
     opp = ObsPlanParse()
     opp.make_conversion("txt_files/observe_command.txt", "txt_files/observe_command_NEW1.txt")
-    #opp.make_conversion("txt_files/test_input_2.txt", "txt_files/test_output_NEW2.txt")
-    #opp.make_conversion("txt_files/test_input_3.txt", "txt_files/test_output_NEW3.txt")
 
-
-        
         
