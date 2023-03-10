@@ -9,6 +9,7 @@ packages = [{include = "obsplanparse_mk"}]
 [tool.poetry.dependencies]
 python = "^3.10"
 lark = "^1.1.5"
+pyaraucaria = {git = "https://github.com/araucaria-project/pyaraucaria.git"}
 
 
 [build-system]
