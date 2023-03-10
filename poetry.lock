@@ -124,7 +124,7 @@ files = [
 [[package]]
 name = "pyaraucaria"
 version = "2.6.6"
-description = ""
+description = "Common Routines of OCA Observatory and Araucaria Project"
 category = "main"
 optional = false
 python-versions = "*"
@@ -143,7 +143,7 @@ yaml = ["yaml"]
 type = "git"
 url = "https://github.com/araucaria-project/pyaraucaria.git"
 reference = "HEAD"
-resolved_reference = "7874e73681aad470a75e55bf5d0af3fd4805ce79"
+resolved_reference = "6d13d0463dfb33a6df56b4e0d189654cd1b49e71"
 
 [metadata]
 lock-version = "2.0"
