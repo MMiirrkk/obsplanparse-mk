@@ -263,6 +263,10 @@ for h in x.keys():
                     fuu(o, f[o])
                     if isinstance(f[o], Sequence):
                         a = f[o].subcomponents
+                        for b in a.keys():
+                            fuu(b, a[b])
+                            if isinstance(a[b], Sequence):
+                                c = a[b].subcomponents
 
 
 """x = x['112232322'].subcomponents
