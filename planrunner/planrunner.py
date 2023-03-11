@@ -3,7 +3,7 @@ import logging
 from typing import List, Any, Dict
 
 logger = logging.getLogger("planrunner")
-logger.setLevel(logging.DEBUG)
+logger.setLevel(logging.INFO)
 
 class CantOverideNightPlanError(Exception):
     pass
@@ -16,30 +16,30 @@ class ObservationPlan:
     def __init__(self, client_name: str, observ_plan_id: str) -> None:
         self.observ_plan_id = observ_plan_id
         self.client_name = client_name
-        self.nightplans = {}
+        self.subcomponents = {}
         super().__init__()
 
     def get_nightplan(self, nightplan_id: str):
         try:
-            return self.nightplans[nightplan_id]
+            return self.subcomponents[nightplan_id]
         except LookupError:
             logger.error(f'There is no nightplan {nightplan_id}')
 
     def write_nightplan(self, nightplan_id: str, nightplan_dict: List[Any], overwrite: bool = False):
 
-        if (nightplan_id in self.nightplans.keys()) and overwrite:
+        if (nightplan_id in self.subcomponents.keys()) and overwrite:
             np = NightPlan(nightplan_id, nightplan_dict, self)
-            self.nightplans[nightplan_id] = np
+            self.subcomponents[nightplan_id] = np
             logger.info(f'Plan {nightplan_id} is overwritten')
-        elif (nightplan_id in self.nightplans.keys()) and (overwrite is False):
+        elif (nightplan_id in self.subcomponents.keys()) and (overwrite is False):
             raise CantOverideNightPlanError
         else:
             np = NightPlan(nightplan_id, nightplan_dict, self)
-            self.nightplans[nightplan_id] = np
+            self.subcomponents[nightplan_id] = np
             logger.info(f'Plan {nightplan_id} is written')
 
     def run_night(self, nightplan_id: str):
-        self.nightplans[nightplan_id].run()
+        self.subcomponents[nightplan_id].run()
 
 
 class NightPlan:
@@ -48,19 +48,19 @@ class NightPlan:
         self.nightplan_id = nightplan_id
         self.observation_plan = observation_plan
         self.nightplan_dict = nightplan_dict
-        self.sequences = {}
+        self.subcomponents = {}
         super().__init__()
-        self.write_sequences()
+        self.write_subcomponents()
 
-    def write_sequence(self, sequence_id, sequence_dict, ar: list = None, kw: dict = None):
-        seq = Sequence(sequence_id, sequence_dict, self, ar=ar, kw=kw)
-        self.sequences[sequence_id] = seq
+    def write_subcomponent(self, sequence_id, sequence_dict, par_kw: Dict or None = None):
+        seq = Sequence(sequence_id, sequence_dict, self, par_kw=par_kw)
+        self.subcomponents[sequence_id] = seq
         logger.debug(f'Sequence {sequence_id} dict {sequence_dict} is written')
 
-    def write_sequences(self):
+    def write_subcomponents(self):
         seq_id = 0
         for sequence_dict in self.nightplan_dict:
-            self.write_sequence(f'{self.nightplan_id}_S{seq_id}', sequence_dict)
+            self.write_subcomponent(f'{seq_id}', sequence_dict)
             seq_id += 1
 
     def run(self):
@@ -69,87 +69,78 @@ class NightPlan:
 
 class Sequence:
 
-    def __init__(self, sequence_id: str, sequence_dict: Dict[Any, Any], night_plan: 'NightPlan', ar: list = None, kw: dict = None) -> None:
+    def __init__(self, sequence_id: str, sequence_dict: Dict[Any, Any], night_plan: 'NightPlan', par_kw: Dict or None = None) -> None:
         self.sequence_id = sequence_id
         self.sequence_dict = sequence_dict
-        self.ar = ar
-        self.kw = kw
-        self.sequence_args = []
-        self.sequence_kwargs = {}
+        self.args = []
+        self.kwargs = {}
+        self.parent_kwargs = par_kw
         self.nightplan = night_plan
-        self.commands = {}
+        self.subcomponents = {}
         super().__init__()
-        self.sum_args_kwargs()
-        self.build_sequence_struct()
+        self.build_sequence_struct(par_kw)
 
-    def sum_args_kwargs(self):
-        if self.ar:
-            for a in self.ar:
-                self.sequence_args.append(a)
-        if self.kw:
-            for k in self.kw.keys():
-                self.sequence_kwargs[k] = self.kw[k]
-
-    def build_sequence_struct(self):
+    def build_sequence_struct(self, par_kw):
 
         seq_id = 0
-        com_id = 0
-
-        if 'args' in self.sequence_dict.keys():
-            for a in self.sequence_dict['args']:
-                self.sequence_args.append(a)
+        if par_kw:
+            for n in par_kw.keys():
+                self.parent_kwargs[n] = par_kw[n]
         if 'kwargs' in self.sequence_dict.keys():
             for k in self.sequence_dict['kwargs'].keys():
-                self.sequence_kwargs[k] = self.sequence_dict['kwargs'][k]
+                self.kwargs[k] = self.sequence_dict['kwargs'][k]
         if 'all_commands' in self.sequence_dict.keys():
             for case in self.sequence_dict['all_commands']:
                 if 'begin_sequence' in case.keys():
-                    self.nightplan.write_sequence(f'{self.sequence_id}_S{seq_id}',
-                                                  case,
-                                                  ar=self.sequence_args,
-                                                  kw=self.sequence_kwargs)
+                    kw = None
+                    if 'kwargs' in case.keys():
+                        for k in case['kwargs'].keys():
+                            self.kwargs[k] = case['kwargs'][k]
+                            kw = self.kwargs
+                    if self.parent_kwargs:
+                        for p in self.parent_kwargs.keys():
+                            kw[p] = self.parent_kwargs[p]
+                    self.nightplan.write_subcomponent(f'{self.sequence_id}{seq_id}',
+                                                  case, par_kw=kw)
                     seq_id += 1
                 elif 'command_name' in case.keys():
-                    self.write_command(f'{self.sequence_id}_C{com_id}',
-                                       case,
-                                       ar=self.sequence_args,
-                                       kw=self.sequence_kwargs)
-                    com_id += 1
+                    self.write_command(f'{self.sequence_id}{seq_id}',
+                                       case, par_kw=self.parent_kwargs)
+                    seq_id += 1
                 else:
                     raise SequenceTreeError(Exception)
 
-    def write_command(self, command_id, command_dict, ar: list = None, kw: dict = None):
-        com = Command(command_id, command_dict, self, ar=ar, kw=kw)
-        self.commands[command_id] = com
+    def write_command(self, command_id, command_dict, par_kw: dict = None):
+        com = Command(command_id, command_dict, self, par_kw)
+        self.subcomponents[command_id] = com
 
 
 class Command:
 
-    def __init__(self, command_id: str, command_dict: Dict[Any, Any], sequence: 'Sequence', ar: list = None, kw: dict = None) -> None:
+    def __init__(self, command_id: str, command_dict: Dict[Any, Any], sequence: 'Sequence', par_kw: Dict or None = None) -> None:
         self.command_id = command_id
         self.command_dict = command_dict
         self.sequence = sequence
-        self.command_args = []
-        self.command_kwargs = kw
+        self.args = []
+        self.kwargs = {}
+        self.parent_kwargs = par_kw
         self.command_name: str or None = None
-        self.executors = {}
+        # self.executors = {}
         super().__init__()
         self.build_command_struct()
 
 
     def build_command_struct(self):
         self.command_name = self.command_dict['command_name']
-        self.kwargs_add()
-        logger.debug(
-            f'Command id {self.command_id} name {self.command_name} args {self.command_args} kwargs {self.command_kwargs} is written')
-
-    def kwargs_add(self):
         if 'args' in self.command_dict.keys():
-            for a in self.command_dict['args']:
-                self.command_args.append(a)
+            for m in self.command_dict['args']:
+                self.args.append(m)
         if 'kwargs' in self.command_dict.keys():
             for k in self.command_dict['kwargs'].keys():
-                self.command_kwargs[k] = self.command_dict['kwargs'][k]
+                self.kwargs[k] = self.command_dict['kwargs'][k]
+        logger.debug(
+            f'Command id {self.command_id} name {self.command_name} args {self.args} kwargs {self.kwargs} is written')
+
 
     
 
@@ -184,6 +175,8 @@ class PlanRunner:
         self.observation_plan: ObservationPlan = ObservationPlan(client_name=client_name, observ_plan_id=observ_plan_id)
 
     def load_night_plan_string(self, night_id: str, string: str, overwrite: bool = False) -> None:
+        # TODO check if nightplan is there and ask for overrive and delete previous night plan from this day
+
         self.load_string(string)
         self.parse_plan()
         try:
@@ -205,7 +198,7 @@ class PlanRunner:
         if self.plan_string:
             parser = ObsPlanParser()
             self.parsed_plan = parser.convert_from_string(self.plan_string)
-            logger.info(f'Parsed: {self.parsed_plan}')
+            logger.debug(f'Parsed: {self.parsed_plan}')
         else:
             logger.error(f'No plan to parse.')
 
@@ -230,21 +223,34 @@ pr.load_night_plan_string('112232322', input)
 pr.load_night_plan_string('112232333', input)
 #pr.load_night_plan_string('112232322', input, overwrite=True)
 #pr.run_night('112232322')
+x = pr.observation_plan
+x = x.subcomponents
+x = x
+lis = []
+for n in x:
+    #print(n, x[n])
+    w = x[n].subcomponents
+    for m in w:
+        #print(m, w[m], w[m].args, w[m].kwargs)
+        if isinstance(w[m], Command):
+            lis.append(f'{n} {m} {w[m].command_name} {w[m].args} {w[m].kwargs} {w[m].parent_kwargs}')# {w[m].args} {w[m].kwargs}')
+        try:
+            z = w[m].subcomponents
+            for u in z:
+                #print(u, z[u], z[u].args, z[u].kwargs)
+                if isinstance(z[u], Command):
+                    lis.append(f'{n} {u} {z[u].command_name} {z[u].args} {z[u].kwargs} {z[u].parent_kwargs}')
+        except Exception as e:
+            print()
 
-print(pr.observation_plan)
-print(pr.observation_plan.nightplans)
-print(pr.observation_plan.nightplans['112232322'])
-print(pr.observation_plan.nightplans['112232322'].sequences)
+print(sorted(lis))
 
-print(pr.observation_plan.nightplans['112232322'].sequences['112232322_S0'].commands)
-print(pr.observation_plan.nightplans['112232322'].sequences['112232322_S0_S0'].commands)
 
-print(pr.observation_plan.nightplans['112232322'].sequences['112232322_S0'].commands['112232322_S0_C0'].command_args)
-print(pr.observation_plan.nightplans['112232322'].sequences['112232322_S0'].commands['112232322_S0_C0'].command_kwargs)
-print(pr.observation_plan.nightplans['112232322'].sequences['112232322_S0_S0'].commands['112232322_S0_S0_C0'].command_args)
-print(pr.observation_plan.nightplans['112232322'].sequences['112232322_S0_S0'].commands['112232322_S0_S0_C0'].command_kwargs)
-print(pr.observation_plan.nightplans['112232322'].sequences['112232322_S0_S0'].commands['112232322_S0_S0_C1'].command_args)
-print(pr.observation_plan.nightplans['112232322'].sequences['112232322_S0_S0'].commands['112232322_S0_S0_C1'].command_kwargs)
+
+
+
+
+
 
 
 """
