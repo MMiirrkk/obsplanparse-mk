@@ -106,6 +106,7 @@ class Sequence(AbstractSequence):
         self.parent_args = self.parent.args + self.parent.parent_args
         self.parent_kwargs = self.parent.kwargs | self.parent.parent_kwargs
         self.subcomponents = {}
+        self.priority: int = 0
         super().__init__(self)
         self.build_sequence()
 
@@ -127,10 +128,6 @@ class Sequence(AbstractSequence):
                     raise SequenceTreeError(Exception)
 
 
-
-            # TODO HERE SAME LIKE IN NIGHTPLAN
-            # TODO COULD BE ARGS AND KWARGS ALSO
-
 class Command(AbstractSequence):
 
     def __init__(self, command_id: str, sequence_dict: Dict[Any, Any], parent: 'Sequence' or 'NightPlan') -> None:
@@ -142,27 +139,66 @@ class Command(AbstractSequence):
         self.parent_args = self.parent.args + self.parent.parent_args
         self.parent_kwargs = self.parent.kwargs | self.parent.parent_kwargs
         self.command_name = self.sequence_dict['command_name']
-        # self.executors = {}
+        self.subcomponents = {}
+        self.priority: int = 0
         super().__init__(self)
+        self.write_subcommands()
 
 
-class Executor:
+    def write_subcommands(self):
 
-    def __init__(self, id: str, command: 'Command') -> None:
+        if self.command_name == 'OBJECT':
+            id = 0
+            if len(self.args) == 2:
+                ra = self.args[0]
+                dec = self.args[1]
+            else:
+                ra = self.args[1]
+                dec = self.args[2]
+            sub = MountSlewCooSync(self.command_id+str(id), self, ra=ra, dec=dec)
+            self.subcomponents[self.command_id+str(id)] = sub
+            id += 1
+            sub = DomeSlaveTelescope(self.command_id + str(id), self)
+            self.subcomponents[self.command_id + str(id)] = sub
+            id += 1
+            if 'seq' in self.kwargs:
+                seq_list = list(self.kwargs['seq'].split(','))
+                for n in seq_list:
+                    par = list(n.split('/'))
+                    sub = ChangeFilter(self.command_id + str(id), self, filter=par[1])
+                    self.subcomponents[self.command_id + str(id)] = sub
+                    id += 1
+                    sub = CameraExposure(self.command_id + str(id), self, exp_no=par[0], exp_time=par[2])
+                    self.subcomponents[self.command_id + str(id)] = sub
+                    id += 1
+
+    def run(self):
+        pass
+
+
+class SubCommand:
+
+    def __init__(self, id: str, parent: 'Command', **kwargs) -> None:
         self.id = id
+        self.parent = parent
+        self.done: bool = False
+        self.priority: int = 0
+        self.args = []
+        self.kwargs = kwargs
         super().__init__()
+        logger.info(f'Subcommand {id} is written')
 
 
-class ChangeFilter(Executor):
+class ChangeFilter(SubCommand):
     pass
 
-class MountSlewCooSync(Executor):
+class MountSlewCooSync(SubCommand):
     pass
 
-class DomeSlewAz(Executor):
+class DomeSlaveTelescope(SubCommand):
     pass
 
-class CameraExposure(Executor):
+class CameraExposure(SubCommand):
     pass
 
 
@@ -177,6 +213,7 @@ class PlanRunner:
 
     def load_night_plan_string(self, night_id: str, string: str, overwrite: bool = False) -> None:
         # TODO check if nightplan is there and ask for overrive and delete previous night plan from this day
+        # TODO keep nightplans in settings, only load plans for night, else delete from memory.
 
         self.load_string(string)
         self.parse_plan()
@@ -238,17 +275,24 @@ input_2 = """
 
 pr = PlanRunner('DefaultClient', 'Observ_plan_1')
 pr.load_night_plan_string('112232322', input_1)
-pr.load_night_plan_string('112232333', input_2)
+#pr.load_night_plan_string('112232333', input_2)
 #pr.load_night_plan_string('112232322', input, overwrite=True)
 #pr.run_night('112232322')
 
 def fuu(j, k):
-    print(j, k, k.args, k.kwargs, k.parent_args, k.parent_kwargs)
+    if isinstance(k, Command):
+        # print(j, k, k.args, k.kwargs, k.parent_args, k.parent_kwargs)
+        pass
+    if isinstance(k, Sequence):
+        pass
+    else:
+        if isinstance(k, SubCommand):
+            print(j, k, k.args, k.kwargs)
+
 
 
 
 x = pr.observation_plan.subcomponents
-# print(x)
 for h in x.keys():
     fuu(h, x[h])
     y = x[h].subcomponents
@@ -257,59 +301,17 @@ for h in x.keys():
         z = y[j].subcomponents
         for t in z.keys():
             fuu(t, z[t])
-            if isinstance(z[t], Sequence):
+            if isinstance(z[t], Sequence) or isinstance(z[t], Command):
                 f = z[t].subcomponents
                 for o in f.keys():
                     fuu(o, f[o])
-                    if isinstance(f[o], Sequence):
+                    if isinstance(f[o], Sequence) or isinstance(f[o], Command):
                         a = f[o].subcomponents
                         for b in a.keys():
                             fuu(b, a[b])
-                            if isinstance(a[b], Sequence):
+                            if isinstance(a[b], Sequence) or isinstance(a[b], Command):
                                 c = a[b].subcomponents
-
-
-"""x = x['112232322'].subcomponents
-print(x)
-x = x['0'].subcomponents
-print(x)
-x = x['01'].subcomponents
-print(x)"""
-
-
-
-
-
-"""for m in w:
-        print(m, w[m], w[m].args, w[m].kwargs)
-        if isinstance(w[m], Command):
-            lis.append(f'{n} {m} {w[m].command_name} {w[m].args} {w[m].kwargs} {w[m].parent_kwargs}')# {w[m].args} {w[m].kwargs}')
-        try:
-            z = w[m].subcomponents
-            for u in z:
-                print(u, z[u], z[u].args, z[u].kwargs)
-                if isinstance(z[u], Command):
-                    lis.append(f'{n} {u} {z[u].command_name} {z[u].args} {z[u].kwargs} {z[u].parent_kwargs}')
-        except Exception as e:
-            print()"""
-
-#print(sorted(lis))
-
-
-
-
-
-
-
-
-
-"""
-[{'begin_sequence': 'begin', 'all_commands': [
-{'command_name': 'OBJECT', 'args': ['FF_Aql', '18:58:14.75', '17:21:39.29'], 'kwargs': {'seq': '5/I/60,5/V/70'}}, 
-{'begin_sequence': 'begin', 'kwargs': {'focus': '+30'}, 'all_commands': [
-    {'command_name': 'OBJECT', 'args': ['V496_Aql', '19:08:20.77', '-07:26:15.89'], 'kwargs': {'seq': '1/V/20'}}, 
-    {'command_name': 'OBJECT', 'args': ['V496_Aql', '19:08:20.77', '-07:26:15.89'], 'kwargs': {'seq': '1/V/20'}}
-]}]}]
-
-"""
-
+                                for d in c.keys():
+                                    fuu(d, c[d])
+                                    if isinstance(c[d], Sequence) or isinstance(c[d], Command):
+                                        e = c[d].subcomponents
