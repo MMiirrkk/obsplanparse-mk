@@ -3,9 +3,8 @@ name = "obsplanparse-mk"
 version = "0.1.0"
 description = ""
 authors = ["MMiirrkk <cot@wp.pl>"]
-license = "MIT\\"
+license = "MIT"
 readme = "README.md"
-packages = [{include = "obsplanparse_mk"}]
 
 [tool.poetry.dependencies]
 python = "^3.10"

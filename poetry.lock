@@ -143,7 +143,7 @@ yaml = ["yaml"]
 type = "git"
 url = "https://github.com/araucaria-project/pyaraucaria"
 reference = "HEAD"
-resolved_reference = "79837db978a15a37536dd61f7b9034c84848ec0e"
+resolved_reference = "2c0ea0f3968b5793310b2009ade916b29fe8914a"
 
 [metadata]
 lock-version = "2.0"
