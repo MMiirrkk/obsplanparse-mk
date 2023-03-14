@@ -141,11 +141,11 @@ yaml = ["yaml"]
 
 [package.source]
 type = "git"
-url = "https://github.com/araucaria-project/pyaraucaria.git"
+url = "https://github.com/araucaria-project/pyaraucaria"
 reference = "HEAD"
-resolved_reference = "6d13d0463dfb33a6df56b4e0d189654cd1b49e71"
+resolved_reference = "79837db978a15a37536dd61f7b9034c84848ec0e"
 
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.10"
-content-hash = "833e6457380b883d7979b87494720502c9dd53a2efeccec38a0a8abca178f978"
+content-hash = "0e0d0245ed199be4441eeb592040e235c73de5c68742b5a81d021577a57f4de6"
