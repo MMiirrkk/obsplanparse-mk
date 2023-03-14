@@ -4,6 +4,7 @@ version = "0.1.0"
 description = ""
 authors = ["MMiirrkk <cot@wp.pl>"]
 readme = "README.md"
+repository = "https://github.com/MMiirrkk/obsplanparse-mk"
 packages = [{include = "obsplanparse_mk"}]
 
 [tool.poetry.dependencies]
